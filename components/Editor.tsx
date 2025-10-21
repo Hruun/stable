@@ -407,6 +407,12 @@ export const Editor: React.FC = () => {
                         <button onClick={() => setIsLineNumbersVisible(!isLineNumbersVisible)} className="p-1 rounded-full hover:bg-gray-700 transition-colors" title={isLineNumbersVisible ? "Hide Line Numbers" : "Show Line Numbers"}>
                            <ListIcon className={`w-5 h-5 ${isLineNumbersVisible ? 'text-brand-blue' : 'text-gray-400'}`}/>
                        </button>
+                       <div className="w-px h-4 bg-gray-700 mx-1"></div>
+                       <button onClick={() => setUseVirtualEditor(!useVirtualEditor)} className="p-1 rounded-full hover:bg-gray-700 transition-colors" title={useVirtualEditor ? "Switch to Classic Editor" : "Switch to Virtual Editor"}>
+                           <span className={`text-xs font-mono ${useVirtualEditor ? 'text-brand-blue' : 'text-gray-400'}`}>
+                               {useVirtualEditor ? 'V' : 'C'}
+                           </span>
+                       </button>
                     </div>
 
                     <button

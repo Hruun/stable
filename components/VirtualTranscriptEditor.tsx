@@ -270,6 +270,16 @@ export const VirtualTranscriptEditor = forwardRef<VirtualTranscriptEditorHandle,
         };
     }, [contextMenu]);
 
+    // Auto-scroll to active search match
+    useEffect(() => {
+        if (activeMatchIndex !== -1) {
+            const wordRef = wordRefs.current[activeMatchIndex];
+            if (wordRef) {
+                wordRef.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+    }, [activeMatchIndex]);
+
     // Handle paste
     const handlePaste = useCallback((e: React.ClipboardEvent) => {
         if (onTranscriptPaste) {
@@ -369,8 +379,8 @@ export const VirtualTranscriptEditor = forwardRef<VirtualTranscriptEditorHandle,
                 </span>
             );
             
-            if (word.isParagraphStart && index > 0) {
-                // Start new paragraph
+            if (word.isParagraphStart) {
+                // Start new paragraph (including the very first word)
                 if (currentParagraph.length > 0) {
                     paragraphs.push(
                         <div key={`para-${paragraphKey++}`} className="mb-4">
