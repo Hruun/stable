@@ -3,7 +3,7 @@ import { VirtualTranscriptView, VirtualTranscriptViewHandle } from './VirtualTra
 import { CanvasTimeline as SpeakerTimeline } from './timeline/CanvasTimeline'; // Use the new Canvas-based timeline.
 import { FileUpload } from './FileUpload';
 import { FindReplaceBar } from './FindReplaceBar';
-import { useData } from '../contexts/DataContext';
+import { useVirtualData } from '../contexts/VirtualDataContext';
 import { useUI } from '../contexts/UIContext';
 import { PlayIcon, PauseIcon, UploadCloudIcon, EyeIcon, EyeOffIcon, ClockIcon, ResetIcon, ZoomInIcon, ZoomOutIcon, Volume2Icon, Volume1Icon, VolumeXIcon, UndoIcon, RedoIcon, WandIcon, ListIcon, DownloadIcon, SearchIcon } from './icons/Icons';
 import { formatTranscriptForExport } from '../services/processingService';
@@ -17,7 +17,7 @@ export const VirtualEditor: React.FC = () => {
         handleTranscriptPaste, mfaData, handleApplyMfaTimestamps, mfaApplied,
         whisperData, handleApplyWhisperTimestamps, whisperApplied,
         handleReset, undo, redo, canUndo, canRedo, isDirty, formattedTranscriptApplied
-    } = useData();
+    } = useVirtualData();
 
     const {
         isTimelineVisible, isLineNumbersVisible, timelineZoom, textZoom, volume, lastPlaybackTime,
