@@ -141,8 +141,8 @@ export interface UIContextType {
     setLastPlaybackTime: (time: number) => void;
     shortcuts: ShortcutConfig;
     updateShortcuts: (newShortcuts: ShortcutConfig) => void;
-    currentTab: 'editor' | 'gemini' | 'gpt4o';
-    setCurrentTab: React.Dispatch<React.SetStateAction<'editor' | 'gemini' | 'gpt4o'>>;
+    currentTab: 'editor' | 'virtual' | 'gemini' | 'gpt4o';
+    setCurrentTab: React.Dispatch<React.SetStateAction<'editor' | 'virtual' | 'gemini' | 'gpt4o'>>;
 }
 
 export interface ChatContextType {

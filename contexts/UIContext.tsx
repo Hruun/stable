@@ -37,7 +37,7 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isSpeakerEditorOpen, setIsSpeakerEditorOpen] = useState(false);
     const [isTextSpeakerEditorOpen, setIsTextSpeakerEditorOpen] = useState(false);
-    const [currentTab, setCurrentTab] = useState<'editor' | 'gemini' | 'gpt4o'>('editor');
+    const [currentTab, setCurrentTab] = useState<'editor' | 'virtual' | 'gemini' | 'gpt4o'>('editor');
 
     const [isTimelineVisible, setIsTimelineVisible] = useState(initialSavedState?.isTimelineVisible ?? true);
     const [isLineNumbersVisible, setIsLineNumbersVisible] = useState(initialSavedState?.isLineNumbersVisible ?? true);

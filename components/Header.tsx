@@ -39,6 +39,16 @@ export const Header: React.FC = memo(() => {
                             📝 Classic Editor
                         </button>
                         <button
+                            onClick={() => setCurrentTab('virtual')}
+                            className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${
+                                currentTab === 'virtual' 
+                                    ? 'bg-brand-blue text-white' 
+                                    : 'text-gray-300 hover:text-white hover:bg-gray-600'
+                            }`}
+                        >
+                            ⚡ Virtual Editor
+                        </button>
+                        <button
                             onClick={() => setCurrentTab('gemini')}
                             className={`px-3 py-1.5 text-sm font-medium rounded transition-colors ${
                                 currentTab === 'gemini' 

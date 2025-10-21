@@ -1,6 +1,7 @@
 import React, { useContext } from 'react';
 import { Header } from './components/Header';
 import { Editor } from './components/Editor';
+import { VirtualEditor } from './components/VirtualEditor';
 import { LeftSidebar } from './components/LeftSidebar';
 import { Chat } from './components/Chat';
 import { SettingsModal } from './components/SettingsModal';
@@ -31,7 +32,7 @@ const AppContent: React.FC = () => {
             <SpeakerEditorModal />
             <TextSpeakerEditorModal />
             <main className="flex flex-1 overflow-hidden relative z-10">
-                {currentTab === 'editor' && (
+                {(currentTab === 'editor' || currentTab === 'virtual') && (
                     <LeftSidebar
                         isOpen={leftSidebarOpen}
                         versions={transcriptVersions}
@@ -55,6 +56,15 @@ const AppContent: React.FC = () => {
                                 onClose={() => setChatOpen(false)}
                             />
                             <Editor />
+                        </>
+                    )}
+                    {currentTab === 'virtual' && (
+                        <>
+                            <Chat
+                                isOpen={chatOpen}
+                                onClose={() => setChatOpen(false)}
+                            />
+                            <VirtualEditor />
                         </>
                     )}
                     {currentTab === 'gemini' && (
