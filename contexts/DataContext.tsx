@@ -1,6 +1,10 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import type { MatchedWord, DiarizationSegment, SpeakerMap, TranscriptVersion, DataContextType } from '../types';
-import { parsePyannote, parseMfa, interpolateTimestamps, parsePastedTranscript, parseWhisperJson, alignAndApplyTimestamps, advancedWordMatching } from '../services/processingService';
+import { 
+    parsePyannote, parseMfa, interpolateTimestamps, parsePastedTranscript, 
+    parseWhisperJson, alignAndApplyTimestamps, advancedWordMatching,
+    parseFormattedTranscript, stripSpeakerTags, reconstructSpeakerTags, SpeakerTagInfo 
+} from '../services/processingService';
 
 const DataContext = createContext<DataContextType | null>(null);
 
@@ -41,6 +45,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     const [currentTranscript, setTranscript] = useState<MatchedWord[]>([]); // This holds the live, "dirty" state of the transcript being edited.
     const [formattedTranscriptApplied, setFormattedTranscriptApplied] = useState(initialSavedState?.formattedTranscriptApplied ?? false);
+    
+    // Store speaker tags from formatted transcript for reconstruction after alignment
+    const [originalSpeakerTags, setOriginalSpeakerTags] = useState<SpeakerTagInfo[]>([]);
 
     // Effect to load the words from the current version into the editable state
     useEffect(() => {
@@ -98,7 +105,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // Use the advanced word matching algorithm for 99% accuracy (Montreal) or 100% (WhisperX)
         const alignedWords = advancedWordMatching(currentTranscript, data);
         
-        const finalTranscript = interpolateTimestamps(alignedWords);
+        // If we have original speaker tags, reconstruct them after alignment
+        let finalTranscript = interpolateTimestamps(alignedWords);
+        if (originalSpeakerTags.length > 0) {
+            finalTranscript = reconstructSpeakerTags(finalTranscript, originalSpeakerTags);
+        }
+        
         const newVersion: TranscriptVersion = {
             name: `${type} Timestamps Applied (v${transcriptVersions.length + 1})`,
             words: finalTranscript,
@@ -157,7 +169,22 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const handleTranscriptPaste = useCallback((text: string) => {
         try {
-            const pastedWords = parsePastedTranscript(text);
+            // Check if the text contains speaker tags
+            const hasSpeakerTags = /(?:^|\n)(?:(?:\d{2}:){1,2}\d{2}[.,]\d+\s+)?(?:S\d+|S\?|Speaker\s*\d+|[A-Z][a-zA-Z\s]*?):\s/m.test(text);
+            
+            let pastedWords: MatchedWord[];
+            
+            if (hasSpeakerTags) {
+                // Parse as formatted transcript with speaker tags
+                const { words, speakerTags } = parseFormattedTranscript(text);
+                pastedWords = words;
+                setOriginalSpeakerTags(speakerTags); // Store for later reconstruction
+            } else {
+                // Parse as simple transcript
+                pastedWords = parsePastedTranscript(text);
+                setOriginalSpeakerTags([]); // Clear any previous speaker tags
+            }
+            
             if (pastedWords.length > 0) {
                 if (transcriptVersions.length === 0) {
                     const newVersion: TranscriptVersion = { name: `Uploaded Transcript (v1)`, words: pastedWords };

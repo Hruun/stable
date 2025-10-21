@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback, forwardRef, useImperativeHandle } from 'react';
 import type { MatchedWord, TranscriptParagraph } from '../types';
-import { formatTimestamp, parsePastedTranscript, parseTimestamp } from '../services/processingService';
+import { formatTimestamp, parsePastedTranscript, parseTimestamp, parseFormattedTranscript } from '../services/processingService';
 
 interface TranscriptViewProps {
     words: MatchedWord[];
@@ -231,9 +231,15 @@ export const TranscriptView = forwardRef<TranscriptViewHandle, TranscriptViewPro
                 return;
             }
 
-            const match = trimmedLine.match(/^(?:((?:\d{2}:){1,2}\d{2}[.,]\d+)\s+)?(?:(S\d+|S\?):\s+)?(.*)$/s);
+            // Enhanced regex to match various speaker tag formats like the VirtualTranscriptEditor
+            // Supports: "S1:", "S?:", "Speaker 1:", "Name:", etc.
+            const match = trimmedLine.match(/^(?:((?:\d{2}:){1,2}\d{2}[.,]\d+)\s+)?(?:([^:]+):\s+)?(.*)$/);
             const newTimestampStr = match?.[1] || null;
-            const explicitSpeaker = match?.[2] || null;
+            const speakerTag = match?.[2] || null;
+            
+            // Check if the speaker tag looks like an actual speaker (not just random text with a colon)
+            const isSpeakerTag = speakerTag ? /^(S\d+|S\?|Speaker\s*\d+|[A-Z][a-zA-Z\s]*?)$/.test(speakerTag.trim()) : false;
+            const explicitSpeaker = isSpeakerTag ? speakerTag.trim() : null;
             const newWordsText = match?.[3] ?? trimmedLine;
             const newTimestamp = newTimestampStr ? parseTimestamp(newTimestampStr) : null;
 
