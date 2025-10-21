@@ -364,6 +364,160 @@ export const parsePastedTranscript = (text: string): MatchedWord[] => {
     return allWords;
 };
 
+// Enhanced parsing for formatted transcripts with speaker tags
+export interface ParsedTranscriptLine {
+    timestamp: number | null;
+    speaker: string | null;
+    text: string;
+    originalLine: string;
+}
+
+export interface SpeakerTagInfo {
+    speaker: string;
+    timestamp: number | null;
+    position: number; // Position in the original word array where this speaker starts
+}
+
+/**
+ * Parses a formatted transcript with speaker tags and timestamps
+ * Handles formats like:
+ * - "00:00:26.3 S1: Hello?"
+ * - "S2: May I speak to Michael?"
+ * - "Speaker 1: Some text"
+ * - "Name: Some text"
+ */
+export const parseFormattedTranscript = (text: string): { words: MatchedWord[], speakerTags: SpeakerTagInfo[] } => {
+    const lines = text.split('\n').filter(line => line.trim());
+    const allWords: MatchedWord[] = [];
+    const speakerTags: SpeakerTagInfo[] = [];
+    let wordNumber = 1;
+    
+    lines.forEach((line, lineIndex) => {
+        const trimmedLine = line.trim();
+        if (!trimmedLine) return;
+        
+        // Enhanced regex to match various speaker tag formats
+        // Captures: [full match, optional timestamp, speaker tag, remaining text]
+        const speakerMatch = trimmedLine.match(/^(?:((?:\d{2}:){1,2}\d{2}[.,]\d+)\s+)?([^:]+):\s*(.*)$/);
+        
+        let timestamp: number | null = null;
+        let speaker: string | null = null;
+        let textContent: string = trimmedLine;
+        
+        if (speakerMatch) {
+            const [, timestampStr, speakerTag, remainingText] = speakerMatch;
+            
+            // Check if the speaker tag looks like an actual speaker (not just random text with a colon)
+            // Speaker tags typically match patterns like S1, S2, Speaker 1, or proper names
+            const isSpeakerTag = /^(S\d+|S\?|Speaker\s*\d+|[A-Z][a-zA-Z\s]*?)$/.test(speakerTag.trim());
+            
+            if (isSpeakerTag) {
+                timestamp = timestampStr ? parseTimestamp(timestampStr) : null;
+                speaker = speakerTag.trim();
+                textContent = remainingText.trim();
+                
+                // Record speaker tag info
+                if (speaker) {
+                    speakerTags.push({
+                        speaker,
+                        timestamp,
+                        position: allWords.length
+                    });
+                }
+            }
+        }
+        
+        // Split text into words
+        const wordsInLine = textContent.split(/\s+/).filter(w => w);
+        
+        wordsInLine.forEach((word, wordIndex) => {
+            allWords.push({
+                punctuated_word: word,
+                cleaned_word: word.toLowerCase().replace(/[.,!?]/g, ''),
+                start: null, // Will be filled by MFA/Whisper
+                end: null,   // Will be filled by MFA/Whisper
+                number: wordNumber++,
+                isParagraphStart: wordIndex === 0 && (lineIndex > 0 || speaker !== null),
+                speakerLabel: speaker || undefined
+            });
+        });
+    });
+    
+    return { words: allWords, speakerTags };
+};
+
+/**
+ * Strips speaker tags from a formatted transcript to prepare for MFA/Whisper matching
+ * Returns clean text without speaker tags or timestamps
+ */
+export const stripSpeakerTags = (text: string): string => {
+    const lines = text.split('\n').filter(line => line.trim());
+    const cleanedLines: string[] = [];
+    
+    lines.forEach(line => {
+        const trimmedLine = line.trim();
+        if (!trimmedLine) return;
+        
+        // Match and remove speaker tags
+        const speakerMatch = trimmedLine.match(/^(?:(?:\d{2}:){1,2}\d{2}[.,]\d+\s+)?([^:]+):\s*(.*)$/);
+        
+        if (speakerMatch) {
+            const [, possibleSpeaker, remainingText] = speakerMatch;
+            // Check if it's a valid speaker tag
+            const isSpeakerTag = /^(S\d+|S\?|Speaker\s*\d+|[A-Z][a-zA-Z\s]*?)$/.test(possibleSpeaker.trim());
+            
+            if (isSpeakerTag) {
+                cleanedLines.push(remainingText.trim());
+            } else {
+                cleanedLines.push(trimmedLine);
+            }
+        } else {
+            cleanedLines.push(trimmedLine);
+        }
+    });
+    
+    return cleanedLines.join(' ');
+};
+
+/**
+ * Reconstructs speaker tags and timestamps after MFA/Whisper matching
+ * Combines the original speaker information with the newly aligned timestamps
+ */
+export const reconstructSpeakerTags = (
+    alignedWords: MatchedWord[], 
+    originalSpeakerTags: SpeakerTagInfo[]
+): MatchedWord[] => {
+    const reconstructed = [...alignedWords];
+    
+    // Apply speaker tags to the appropriate words
+    originalSpeakerTags.forEach(tagInfo => {
+        if (tagInfo.position < reconstructed.length) {
+            // Mark this word as a paragraph start with speaker
+            reconstructed[tagInfo.position] = {
+                ...reconstructed[tagInfo.position],
+                isParagraphStart: true,
+                speakerLabel: tagInfo.speaker,
+                // If original had a timestamp and this word now has a timestamp, prefer the MFA/Whisper one
+                // But mark that this originally had a timestamp for reference
+            };
+            
+            // Apply speaker to subsequent words until next speaker change
+            for (let i = tagInfo.position + 1; i < reconstructed.length; i++) {
+                // Stop if we hit another speaker tag
+                if (originalSpeakerTags.some(tag => tag.position === i)) {
+                    break;
+                }
+                reconstructed[i] = {
+                    ...reconstructed[i],
+                    speakerLabel: tagInfo.speaker
+                };
+            }
+        }
+    });
+    
+    return reconstructed;
+};
+
 
 export const formatTimestamp = (seconds: number): string => {
     if (isNaN(seconds) || seconds < 0) {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { TranscriptView, TranscriptViewHandle } from './TranscriptView';
+import { VirtualTranscriptEditor, VirtualTranscriptEditorHandle } from './VirtualTranscriptEditor';
 import { CanvasTimeline as SpeakerTimeline } from './timeline/CanvasTimeline'; // Use the new Canvas-based timeline.
 import { FileUpload } from './FileUpload';
 import { FindReplaceBar } from './FindReplaceBar';
@@ -39,7 +40,8 @@ export const Editor: React.FC = () => {
     
     const [selectedSegment, setSelectedSegment] = useState<DiarizationSegment | null>(null);
 
-    const transcriptViewRef = useRef<TranscriptViewHandle>(null);
+    const transcriptViewRef = useRef<TranscriptViewHandle | VirtualTranscriptEditorHandle>(null);
+    const [useVirtualEditor, setUseVirtualEditor] = useState(true); // Default to new editor
 
     const MIN_ZOOM = 0.25;
     const MAX_ZOOM = 50;
@@ -525,19 +527,35 @@ export const Editor: React.FC = () => {
                             currentMatchNumber={currentMatchIndex + 1}
                         />
                     )}
-                    <TranscriptView 
-                        ref={transcriptViewRef}
-                        words={currentTranscript} 
-                        onSeekToTime={handleSeekToTime} 
-                        onSaveTranscript={setTranscript}
-                        onTranscriptPaste={handleTranscriptPaste}
-                        textZoom={textZoom}
-                        isLineNumbersVisible={isLineNumbersVisible}
-                        searchQuery={searchQuery}
-                        activeMatchIndex={activeMatchGlobalIndex}
-                        onFindWord={handleFindRequest}
-                        onEditStart={handleEditStart}
-                    />
+                    {useVirtualEditor ? (
+                        <VirtualTranscriptEditor 
+                            ref={transcriptViewRef as React.RefObject<VirtualTranscriptEditorHandle>}
+                            words={currentTranscript} 
+                            onSeekToTime={handleSeekToTime} 
+                            onSaveTranscript={setTranscript}
+                            onTranscriptPaste={handleTranscriptPaste}
+                            textZoom={textZoom}
+                            isLineNumbersVisible={isLineNumbersVisible}
+                            searchQuery={searchQuery}
+                            activeMatchIndex={activeMatchGlobalIndex}
+                            onFindWord={handleFindRequest}
+                            onEditStart={handleEditStart}
+                        />
+                    ) : (
+                        <TranscriptView 
+                            ref={transcriptViewRef as React.RefObject<TranscriptViewHandle>}
+                            words={currentTranscript} 
+                            onSeekToTime={handleSeekToTime} 
+                            onSaveTranscript={setTranscript}
+                            onTranscriptPaste={handleTranscriptPaste}
+                            textZoom={textZoom}
+                            isLineNumbersVisible={isLineNumbersVisible}
+                            searchQuery={searchQuery}
+                            activeMatchIndex={activeMatchGlobalIndex}
+                            onFindWord={handleFindRequest}
+                            onEditStart={handleEditStart}
+                        />
+                    )}
                 </div>
             </div>
         </div>
