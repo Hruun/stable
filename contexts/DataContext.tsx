@@ -3,7 +3,8 @@ import type { MatchedWord, DiarizationSegment, SpeakerMap, TranscriptVersion, Da
 import { 
     parsePyannote, parseMfa, interpolateTimestamps, parsePastedTranscript, 
     parseWhisperJson, alignAndApplyTimestamps, advancedWordMatching,
-    parseFormattedTranscript, stripSpeakerTags, reconstructSpeakerTags, SpeakerTagInfo 
+    parseFormattedTranscript, stripSpeakerTags, reconstructSpeakerTags, SpeakerTagInfo,
+    addSpeakerSeparationLines 
 } from '../services/processingService';
 
 const DataContext = createContext<DataContextType | null>(null);
@@ -110,6 +111,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (originalSpeakerTags.length > 0) {
             finalTranscript = reconstructSpeakerTags(finalTranscript, originalSpeakerTags);
         }
+        
+        // Add empty lines between speaker paragraphs for better visual separation
+        finalTranscript = addSpeakerSeparationLines(finalTranscript);
         
         const newVersion: TranscriptVersion = {
             name: `${type} Timestamps Applied (v${transcriptVersions.length + 1})`,

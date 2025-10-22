@@ -3,7 +3,8 @@ import type { MatchedWord, DiarizationSegment, SpeakerMap, TranscriptVersion, Da
 import { 
     parsePyannote, parseMfa, interpolateTimestamps, parsePastedTranscript, 
     parseWhisperJson, alignAndApplyTimestamps, advancedWordMatching,
-    parseFormattedTranscript, stripSpeakerTags, reconstructSpeakerTags, SpeakerTagInfo 
+    parseFormattedTranscript, stripSpeakerTags, reconstructSpeakerTags, SpeakerTagInfo,
+    addSpeakerSeparationLines 
 } from '../services/processingService';
 
 const VirtualDataContext = createContext<DataContextType | null>(null);
@@ -185,7 +186,10 @@ export const VirtualDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }
 
         try {
-            const alignedWords = alignAndApplyTimestamps(currentTranscript, mfaData);
+            let alignedWords = alignAndApplyTimestamps(currentTranscript, mfaData);
+            
+            // Add empty lines between speaker paragraphs for better visual separation
+            alignedWords = addSpeakerSeparationLines(alignedWords);
             
             const newVersions = [
                 ...transcriptVersions.slice(0, currentVersionIndex + 1),
@@ -210,7 +214,10 @@ export const VirtualDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }
 
         try {
-            const alignedWords = alignAndApplyTimestamps(currentTranscript, whisperData);
+            let alignedWords = alignAndApplyTimestamps(currentTranscript, whisperData);
+            
+            // Add empty lines between speaker paragraphs for better visual separation
+            alignedWords = addSpeakerSeparationLines(alignedWords);
             
             const newVersions = [
                 ...transcriptVersions.slice(0, currentVersionIndex + 1),

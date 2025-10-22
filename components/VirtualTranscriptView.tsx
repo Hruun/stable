@@ -39,6 +39,8 @@ const VirtualTranscriptView = forwardRef<VirtualTranscriptViewHandle, VirtualTra
     const [editableText, setEditableText] = useState('');
     const containerRef = useRef<HTMLDivElement>(null);
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
+    const [contextMenu, setContextMenu] = useState<{ x: number, y: number, word: MatchedWord } | null>(null);
 
     // Convert words to display text
     const displayText = useMemo(() => {
@@ -69,6 +71,17 @@ const VirtualTranscriptView = forwardRef<VirtualTranscriptViewHandle, VirtualTra
     useEffect(() => {
         setEditableText(displayText);
     }, [displayText]);
+
+    // Handle context menu click outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setContextMenu(null);
+            }
+        };
+        if (contextMenu) document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [contextMenu]);
 
     const handleStartEdit = useCallback(() => {
         setIsEditing(true);
@@ -172,28 +185,38 @@ const VirtualTranscriptView = forwardRef<VirtualTranscriptViewHandle, VirtualTra
         scrollToWord,
     }), [insertTimestampAtCursor, insertSegmentTimestamp, scrollToWord]);
 
-    const renderDisplayText = () => {
-        if (!searchQuery) {
-            return displayText;
-        }
-
-        // Simple highlighting for search results
-        const parts = displayText.split(new RegExp(`(${searchQuery})`, 'gi'));
-        return parts.map((part, index) => {
-            if (part.toLowerCase() === searchQuery.toLowerCase()) {
-                const isActive = index === activeMatchIndex;
-                return (
-                    <mark 
-                        key={index} 
-                        className={isActive ? 'bg-brand-blue text-white' : 'bg-yellow-300 text-gray-900'}
-                    >
-                        {part}
-                    </mark>
-                );
-            }
-            return part;
-        });
+    const handleWordContextMenu = (e: React.MouseEvent, word: MatchedWord) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setContextMenu({ x: e.clientX, y: e.clientY, word: word });
     };
+
+    const handleMenuAction = (action: () => void) => {
+        action();
+        setContextMenu(null);
+    };
+
+    const paragraphs: TranscriptParagraph[] = useMemo(() => {
+        if (words.length === 0) return [];
+        const result: TranscriptParagraph[] = [];
+        let currentParagraph: MatchedWord[] = [];
+        let startingIndex = 0;
+
+        words.forEach((word, index) => {
+            if (word.isParagraphStart && currentParagraph.length > 0) {
+                result.push({ words: currentParagraph, startingWordIndex: startingIndex, endingWordIndex: index - 1 });
+                currentParagraph = [];
+                startingIndex = index;
+            }
+            currentParagraph.push(word);
+        });
+
+        if (currentParagraph.length > 0) {
+            result.push({ words: currentParagraph, startingWordIndex: startingIndex, endingWordIndex: words.length - 1 });
+        }
+        
+        return result;
+    }, [words]);
 
     if (words.length === 0) {
         return (
@@ -209,24 +232,83 @@ const VirtualTranscriptView = forwardRef<VirtualTranscriptViewHandle, VirtualTra
     return (
         <div 
             ref={containerRef}
-            className="h-full bg-gray-900 rounded-lg border border-gray-700 relative overflow-auto transcript-editor-view"
-            style={{ fontSize: `${textZoom}rem` }}
+            className="h-full bg-gray-900 rounded-lg shadow-inner text-lg text-gray-300 focus:outline-none overflow-y-auto scrollbar-thin p-6"
+            tabIndex={-1}
+            style={{ fontSize: `${1 * textZoom}rem` }}
         >
             {!isEditing ? (
-                <div 
-                    className="p-4 cursor-text min-h-full whitespace-pre-wrap break-words"
-                    onClick={handleStartEdit}
-                    onPaste={(e) => {
-                        e.preventDefault();
-                        const text = e.clipboardData.getData('text');
-                        onTranscriptPaste(text);
-                    }}
-                >
-                    <div className="text-gray-200 leading-relaxed">
-                        {renderDisplayText()}
-                    </div>
+                <div>
+                    {paragraphs.map((paragraph, pIndex) => {
+                        const firstWord = paragraph.words[0];
+                        const isEmptyPara = paragraph.words.length === 1 && paragraph.words[0].punctuated_word === '';
+                        const showSpeaker = !!firstWord?.speakerLabel;
+                        const showTimestamp = showSpeaker && firstWord?.start !== null;
+
+                        return (
+                            <div
+                                key={paragraph.startingWordIndex}
+                                className="virtualized-paragraph flex items-start mb-2 relative rounded -mx-2 px-2 transition-colors hover:bg-gray-800/50"
+                                onDoubleClick={handleStartEdit}
+                            >
+                                {isLineNumbersVisible && (
+                                    <div 
+                                        className="pr-4 pt-1 text-right font-mono text-gray-600 select-none text-base flex-shrink-0"
+                                        style={{ lineHeight: `${1.75 * textZoom}rem`, width: '4rem' }}
+                                    >
+                                        {firstWord?.number ?? ''}
+                                    </div>
+                                )}
+                                <div 
+                                    className="flex-1 pt-1 min-h-[1.75rem]"
+                                    style={{ lineHeight: `${1.75 * textZoom}rem` }}
+                                >
+                                    <div className="outline-none">
+                                        {showTimestamp && (
+                                            <span className="font-mono text-sm text-brand-blue mr-3 select-none">
+                                                {formatTimestamp(firstWord.start!)}
+                                            </span>
+                                        )}
+                                        {showSpeaker && <strong className="mr-2 text-gray-400 select-none">{firstWord.speakerLabel}:</strong>}
+
+                                        {!isEmptyPara && paragraph.words.map((word, wordIndexInPara) => {
+                                            const globalWordIndex = paragraph.startingWordIndex + wordIndexInPara;
+                                            const isMatch = searchQuery && word.punctuated_word.toLowerCase().includes(searchQuery.toLowerCase());
+                                            const isActiveMatch = globalWordIndex === activeMatchIndex;
+                                            
+                                            return (
+                                                <React.Fragment key={globalWordIndex}>
+                                                    <span
+                                                        onContextMenu={(e) => handleWordContextMenu(e, word)}
+                                                        onClick={() => onSeekToTime(word.start)}
+                                                        className={`
+                                                            cursor-pointer hover:bg-gray-700 rounded
+                                                            ${isActiveMatch ? 'bg-orange-500 text-white' : ''}
+                                                            ${!isActiveMatch && isMatch ? 'bg-yellow-500/50' : ''}
+                                                        `}
+                                                    >{word.punctuated_word}</span>
+                                                    {' '}
+                                                </React.Fragment>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+
+                    {/* Context Menu */}
+                    {contextMenu && (
+                        <div ref={menuRef} style={{ top: contextMenu.y, left: contextMenu.x }} className="fixed bg-gray-700 text-white rounded-md shadow-lg p-1 z-50 text-sm">
+                            <ul className="space-y-1">
+                                <li onClick={() => handleMenuAction(() => onSeekToTime(contextMenu.word.start))} className="px-3 py-1 hover:bg-gray-600 rounded cursor-pointer">Play word</li>
+                                <li onClick={() => handleMenuAction(() => window.open(`https://www.google.com/search?q=${encodeURIComponent(contextMenu.word.punctuated_word)}`, '_blank'))} className="px-3 py-1 hover:bg-gray-600 rounded cursor-pointer">Search word</li>
+                                <li onClick={() => handleMenuAction(() => onFindWord(contextMenu.word.punctuated_word))} className="px-3 py-1 hover:bg-gray-600 rounded cursor-pointer">Find...</li>
+                            </ul>
+                        </div>
+                    )}
+
                     <div className="absolute top-2 right-2 text-xs text-gray-500">
-                        ⚡ Virtual Editor - Click to edit
+                        ⚡ Virtual Editor - Double-click to edit
                     </div>
                 </div>
             ) : (
@@ -239,6 +321,9 @@ const VirtualTranscriptView = forwardRef<VirtualTranscriptViewHandle, VirtualTra
                         className="w-full h-full p-4 bg-gray-900 text-gray-200 border-none outline-none resize-none leading-relaxed"
                         placeholder="Enter transcript..."
                         style={{ fontSize: `${textZoom}rem` }}
+                        onPaste={(e) => {
+                            e.stopPropagation(); // Let the default paste behavior work in edit mode
+                        }}
                     />
                     <div className="absolute top-2 right-2 flex gap-2">
                         <button

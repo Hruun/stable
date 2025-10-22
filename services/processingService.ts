@@ -553,6 +553,44 @@ export const parseTimestamp = (timestamp: string): number | null => {
     return isNaN(seconds) ? null : seconds;
 };
 
+/**
+ * Adds empty line paragraphs between speaker changes for better visual separation
+ * This function processes a transcript after MFA/Whisper alignment to ensure
+ * that each speaker paragraph is separated by a single empty line
+ */
+export const addSpeakerSeparationLines = (words: MatchedWord[]): MatchedWord[] => {
+    if (words.length === 0) return words;
+    
+    const result: MatchedWord[] = [];
+    let lastSpeaker: string | undefined = undefined;
+    
+    words.forEach((word, index) => {
+        // Check if this is a new speaker (different from previous speaker)
+        if (word.isParagraphStart && word.speakerLabel && word.speakerLabel !== lastSpeaker && lastSpeaker !== undefined) {
+            // Insert an empty line paragraph before the new speaker
+            result.push({
+                number: 0, // Will be renumbered later
+                punctuated_word: '',
+                cleaned_word: '',
+                start: null,
+                end: null,
+                isParagraphStart: true,
+                speakerLabel: undefined
+            });
+        }
+        
+        result.push({ ...word });
+        
+        // Update last speaker if this word has a speaker label
+        if (word.speakerLabel) {
+            lastSpeaker = word.speakerLabel;
+        }
+    });
+    
+    // Renumber all words
+    return result.map((word, index) => ({ ...word, number: index + 1 }));
+};
+
 export const formatTranscriptForExport = (words: MatchedWord[]): string => {
     if (words.length === 0) return '';
 
