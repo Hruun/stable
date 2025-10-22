@@ -272,40 +272,11 @@ const VirtualTranscriptView = forwardRef<VirtualTranscriptViewHandle, VirtualTra
         if (lineIndex < lines.length) {
             const currentLine = lines[lineIndex];
             
-            // More accurate character width estimation using canvas measurement
-            const canvas = document.createElement('canvas');
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-                ctx.font = `${textZoom * 16}px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`;
-                
-                // Find closest character position using binary search
-                let left = 0;
-                let right = currentLine.length;
-                let bestIndex = 0;
-                let minDistance = Infinity;
-                
-                // Sample key positions for better accuracy
-                for (let i = 0; i <= currentLine.length; i++) {
-                    const testText = currentLine.substring(0, i);
-                    const width = ctx.measureText(testText).width;
-                    const distance = Math.abs(width - adjustedX);
-                    
-                    if (distance < minDistance) {
-                        minDistance = distance;
-                        bestIndex = i;
-                    }
-                    
-                    // Early exit if we've gone too far
-                    if (width > adjustedX + 20) break;
-                }
-                
-                position += bestIndex;
-            } else {
-                // Fallback to improved estimation
-                const avgCharWidth = textZoom * 8.5; // More accurate for monospace
-                const charIndex = Math.min(Math.round(adjustedX / avgCharWidth), currentLine.length);
-                position += Math.max(0, charIndex);
-            }
+            // Rough character width estimation (this is approximate)
+            const charWidth = textZoom * 9; // Approximate character width in pixels
+            const charIndex = Math.min(Math.floor(adjustedX / charWidth), currentLine.length);
+            
+            position += Math.max(0, charIndex);
         }
         
         return Math.min(position, text.length);
