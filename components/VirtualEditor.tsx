@@ -5,7 +5,9 @@ import { FileUpload } from './FileUpload';
 import { FindReplaceBar } from './FindReplaceBar';
 import { useVirtualData } from '../contexts/VirtualDataContext';
 import { useUI } from '../contexts/UIContext';
-import { PlayIcon, PauseIcon, UploadCloudIcon, EyeIcon, EyeOffIcon, ClockIcon, ResetIcon, ZoomInIcon, ZoomOutIcon, Volume2Icon, Volume1Icon, VolumeXIcon, UndoIcon, RedoIcon, WandIcon, ListIcon, DownloadIcon, SearchIcon } from './icons/Icons';
+import { useLineHighlight } from '../contexts/LineHighlightContext';
+import { LineHighlightConfig } from './LineHighlightConfig';
+import { PlayIcon, PauseIcon, UploadCloudIcon, EyeIcon, EyeOffIcon, ClockIcon, ResetIcon, ZoomInIcon, ZoomOutIcon, Volume2Icon, Volume1Icon, VolumeXIcon, UndoIcon, RedoIcon, WandIcon, ListIcon, DownloadIcon, SearchIcon, HighlightIcon } from './icons/Icons';
 import { formatTranscriptForExport } from '../services/processingService';
 import type { DiarizationSegment } from '../types';
 
@@ -38,6 +40,10 @@ export const VirtualEditor: React.FC = () => {
     const [currentMatchIndex, setCurrentMatchIndex] = useState(-1);
     
     const [selectedSegment, setSelectedSegment] = useState<DiarizationSegment | null>(null);
+
+    // Line highlighting state
+    const [isHighlightConfigOpen, setIsHighlightConfigOpen] = useState(false);
+    const highlightButtonRef = useRef<HTMLButtonElement>(null);
 
     const transcriptViewRef = useRef<VirtualTranscriptViewHandle>(null);
 
@@ -488,6 +494,21 @@ export const VirtualEditor: React.FC = () => {
                         <button onClick={() => setIsLineNumbersVisible(!isLineNumbersVisible)} className="p-1 rounded-full hover:bg-gray-700 transition-colors" title={isLineNumbersVisible ? "Hide Line Numbers" : "Show Line Numbers"}>
                            <ListIcon className={`w-5 h-5 ${isLineNumbersVisible ? 'text-brand-blue' : 'text-gray-400'}`}/>
                        </button>
+                       <div className="relative">
+                           <button 
+                               ref={highlightButtonRef}
+                               onClick={() => setIsHighlightConfigOpen(!isHighlightConfigOpen)} 
+                               className="p-1 rounded-full hover:bg-gray-700 transition-colors" 
+                               title="Configure Line Highlighting"
+                           >
+                               <HighlightIcon className={`w-5 h-5 ${isHighlightConfigOpen ? 'text-brand-blue' : 'text-gray-400'}`}/>
+                           </button>
+                           <LineHighlightConfig 
+                               isOpen={isHighlightConfigOpen}
+                               onClose={() => setIsHighlightConfigOpen(false)}
+                               anchorRef={highlightButtonRef}
+                           />
+                       </div>
                     </div>
 
                     <button
