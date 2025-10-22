@@ -51,6 +51,7 @@ const VirtualTranscriptView = forwardRef<VirtualTranscriptViewHandle, VirtualTra
     const [cursorPosition, setCursorPosition] = useState(0);
     const [isEditing, setIsEditing] = useState(false);
     const [hoveredWordIndex, setHoveredWordIndex] = useState<number | null>(null);
+    const [scrollPosition, setScrollPosition] = useState(0);
     
     // Refs
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -240,6 +241,98 @@ const VirtualTranscriptView = forwardRef<VirtualTranscriptViewHandle, VirtualTra
         }
     }, [onTranscriptPaste]);
 
+    // Calculate cursor position from click coordinates
+    const calculateCursorPosition = useCallback((clickX: number, clickY: number): number => {
+        if (!displayRef.current) return 0;
+        
+        // Get the display container's bounds
+        const displayRect = displayRef.current.getBoundingClientRect();
+        const relativeY = clickY - displayRect.top;
+        const relativeX = clickX - displayRect.left;
+        
+        // Account for padding (6 * 0.25rem = 1.5rem typically)
+        const padding = 24; // 6 * 4px (assuming 1rem = 16px)
+        const adjustedY = Math.max(0, relativeY - padding);
+        const adjustedX = Math.max(0, relativeX - padding);
+        
+        // Calculate approximate line height
+        const lineHeight = 1.75 * textZoom * 16; // rem to px conversion
+        const lineIndex = Math.floor(adjustedY / lineHeight);
+        
+        // Split text into lines for position calculation
+        const lines = text.split('\n');
+        let position = 0;
+        
+        // Add characters from previous lines
+        for (let i = 0; i < lineIndex && i < lines.length; i++) {
+            position += lines[i].length + 1; // +1 for newline
+        }
+        
+        // Calculate position within the current line
+        if (lineIndex < lines.length) {
+            const currentLine = lines[lineIndex];
+            
+            // Rough character width estimation (this is approximate)
+            const charWidth = textZoom * 9; // Approximate character width in pixels
+            const charIndex = Math.min(Math.floor(adjustedX / charWidth), currentLine.length);
+            
+            position += Math.max(0, charIndex);
+        }
+        
+        return Math.min(position, text.length);
+    }, [text, textZoom]);
+
+    // Enhanced click to edit handler with cursor positioning
+    const handleClickToEdit = useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        
+        // Store current scroll position
+        if (displayRef.current) {
+            setScrollPosition(displayRef.current.scrollTop);
+        }
+        
+        // Calculate cursor position from click
+        const targetPosition = calculateCursorPosition(e.clientX, e.clientY);
+        setCursorPosition(targetPosition);
+        
+        // Switch to edit mode
+        setIsEditing(true);
+        onEditStart();
+        
+        // Focus textarea and set cursor position after a brief delay
+        setTimeout(() => {
+            if (textareaRef.current) {
+                textareaRef.current.focus();
+                textareaRef.current.selectionStart = targetPosition;
+                textareaRef.current.selectionEnd = targetPosition;
+                
+                // Restore scroll position
+                textareaRef.current.scrollTop = scrollPosition;
+            }
+        }, 0);
+    }, [calculateCursorPosition, onEditStart, scrollPosition]);
+
+    // Enhanced blur handler that maintains scroll position
+    const handleEnhancedBlur = useCallback(() => {
+        if (isEditing) {
+            // Store textarea scroll position before switching
+            if (textareaRef.current) {
+                setScrollPosition(textareaRef.current.scrollTop);
+            }
+            
+            const reconciledWords = reconcileTextChanges(text);
+            onSaveTranscript(reconciledWords);
+            setIsEditing(false);
+            
+            // Restore scroll position to display layer after a brief delay
+            setTimeout(() => {
+                if (displayRef.current) {
+                    displayRef.current.scrollTop = scrollPosition;
+                }
+            }, 0);
+        }
+    }, [text, isEditing, reconcileTextChanges, onSaveTranscript, scrollPosition]);
+
     // Imperative handle for parent component
     useImperativeHandle(ref, () => ({
         insertTimestampAtCursor: (time: number) => {
@@ -403,11 +496,7 @@ const VirtualTranscriptView = forwardRef<VirtualTranscriptViewHandle, VirtualTra
                         fontSize: `${textZoom}rem`,
                         lineHeight: `${1.75 * textZoom}rem`
                     }}
-                    onClick={() => {
-                        setIsEditing(true);
-                        onEditStart();
-                        setTimeout(() => textareaRef.current?.focus(), 0);
-                    }}
+                    onClick={handleClickToEdit}
                 >
                     {isLineNumbersVisible && (
                         <div className="float-left mr-4 text-gray-600 font-mono text-sm select-none">
@@ -432,7 +521,7 @@ const VirtualTranscriptView = forwardRef<VirtualTranscriptViewHandle, VirtualTra
                         ref={textareaRef}
                         value={text}
                         onChange={handleTextChange}
-                        onBlur={handleBlur}
+                        onBlur={handleEnhancedBlur}
                         onKeyDown={handleKeyDown}
                         onPaste={handlePaste}
                         className="w-full h-full p-6 bg-gray-900 text-gray-200 border-none outline-none resize-none rounded-lg shadow-inner ring-2 ring-brand-blue/50"
