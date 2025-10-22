@@ -37,7 +37,7 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
     const [isSpeakerEditorOpen, setIsSpeakerEditorOpen] = useState(false);
     const [isTextSpeakerEditorOpen, setIsTextSpeakerEditorOpen] = useState(false);
-    const [currentTab, setCurrentTab] = useState<'editor' | 'virtual' | 'gemini' | 'gpt4o'>('editor');
+    const [currentTab, setCurrentTab] = useState<'editor' | 'virtual' | 'gemini' | 'gpt4o'>(initialSavedState?.currentTab ?? 'editor');
 
     const [isTimelineVisible, setIsTimelineVisible] = useState(initialSavedState?.isTimelineVisible ?? true);
     const [isLineNumbersVisible, setIsLineNumbersVisible] = useState(initialSavedState?.isLineNumbersVisible ?? true);
@@ -59,10 +59,10 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     useEffect(() => {
         const stateToSave = {
             leftSidebarOpen, chatOpen, isTimelineVisible, isLineNumbersVisible,
-            timelineZoom, textZoom, volume, lastPlaybackTime,
+            timelineZoom, textZoom, volume, lastPlaybackTime, currentTab,
         };
         localStorage.setItem('autosave-ui-state', JSON.stringify(stateToSave));
-    }, [leftSidebarOpen, chatOpen, isTimelineVisible, isLineNumbersVisible, timelineZoom, textZoom, volume, lastPlaybackTime]);
+    }, [leftSidebarOpen, chatOpen, isTimelineVisible, isLineNumbersVisible, timelineZoom, textZoom, volume, lastPlaybackTime, currentTab]);
     
     const updateShortcuts = (newShortcuts: ShortcutConfig) => {
         setShortcuts(newShortcuts);

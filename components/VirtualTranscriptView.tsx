@@ -393,61 +393,61 @@ const VirtualTranscriptView = forwardRef<VirtualTranscriptViewHandle, VirtualTra
     }, [words, searchQuery, activeMatchIndex, hoveredWordIndex, handleWordClick, handleWordContextMenu]);
 
     return (
-        <div className="relative h-full">
-            {/* Hidden textarea for editing */}
-            <textarea
-                ref={textareaRef}
-                value={text}
-                onChange={handleTextChange}
-                onBlur={handleBlur}
-                onFocus={handleFocus}
-                onKeyDown={handleKeyDown}
-                onPaste={handlePaste}
-                className="absolute inset-0 opacity-0 pointer-events-auto z-10 resize-none p-6"
-                style={{
-                    fontSize: `${textZoom}rem`,
-                    lineHeight: `${1.75 * textZoom}rem`,
-                    caretColor: 'transparent'
-                }}
-            />
-            
-            {/* Visual display layer */}
-            <div
-                ref={displayRef}
-                className={`
-                    h-full bg-gray-900 rounded-lg shadow-inner text-gray-300
-                    overflow-y-auto scrollbar-thin p-6 cursor-text
-                    ${isEditing ? 'ring-2 ring-brand-blue/50' : ''}
-                `}
-                style={{
-                    fontSize: `${textZoom}rem`,
-                    lineHeight: `${1.75 * textZoom}rem`
-                }}
-                onClick={() => textareaRef.current?.focus()}
-            >
-                {isLineNumbersVisible && (
-                    <div className="float-left mr-4 text-gray-600 font-mono text-sm select-none">
-                        {words.map((word, i) => (
-                            word.isParagraphStart && (
-                                <div key={i} style={{ lineHeight: `${1.75 * textZoom}rem` }}>
-                                    {word.number}
-                                </div>
-                            )
-                        ))}
+        <div className="h-full">
+            {!isEditing ? (
+                // Visual display layer for viewing and word interactions
+                <div
+                    ref={displayRef}
+                    className="h-full bg-gray-900 rounded-lg shadow-inner text-gray-300 overflow-y-auto scrollbar-thin p-6 cursor-text"
+                    style={{
+                        fontSize: `${textZoom}rem`,
+                        lineHeight: `${1.75 * textZoom}rem`
+                    }}
+                    onClick={() => {
+                        setIsEditing(true);
+                        onEditStart();
+                        setTimeout(() => textareaRef.current?.focus(), 0);
+                    }}
+                >
+                    {isLineNumbersVisible && (
+                        <div className="float-left mr-4 text-gray-600 font-mono text-sm select-none">
+                            {words.map((word, i) => (
+                                word.isParagraphStart && (
+                                    <div key={i} style={{ lineHeight: `${1.75 * textZoom}rem` }}>
+                                        {word.number}
+                                    </div>
+                                )
+                            ))}
+                        </div>
+                    )}
+                    
+                    <div className="min-h-full">
+                        {renderVisualLayer}
                     </div>
-                )}
-                
-                <div className="min-h-full">
-                    {renderVisualLayer}
                 </div>
-                
-                {/* Cursor indicator when editing */}
-                {isEditing && (
+            ) : (
+                // Editing mode with textarea
+                <div className="h-full relative">
+                    <textarea
+                        ref={textareaRef}
+                        value={text}
+                        onChange={handleTextChange}
+                        onBlur={handleBlur}
+                        onKeyDown={handleKeyDown}
+                        onPaste={handlePaste}
+                        className="w-full h-full p-6 bg-gray-900 text-gray-200 border-none outline-none resize-none rounded-lg shadow-inner ring-2 ring-brand-blue/50"
+                        style={{
+                            fontSize: `${textZoom}rem`,
+                            lineHeight: `${1.75 * textZoom}rem`
+                        }}
+                        placeholder="Enter transcript..."
+                        autoFocus
+                    />
                     <div className="absolute top-2 right-2 text-xs text-brand-blue bg-gray-800 px-2 py-1 rounded">
-                        Editing...
+                        Editing... (Click outside to save)
                     </div>
-                )}
-            </div>
+                </div>
+            )}
             
             {/* Context menu */}
             {contextMenu && (
