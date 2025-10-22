@@ -53,8 +53,8 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
         } catch { return DEFAULT_SHORTCUTS; }
     });
     
-    // Data context is a dependency for shortcuts
-    const { undo, redo, audioRef } = useData();
+    // Note: Shortcuts will be handled by the individual editors now
+    // const { undo, redo, audioRef } = useData();
 
     useEffect(() => {
         const stateToSave = {
@@ -69,58 +69,14 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({ children }
         localStorage.setItem('transcription-editor-shortcuts', JSON.stringify(newShortcuts));
     };
 
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            const target = e.target as HTMLElement;
-            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || (target.isContentEditable && !target.closest('.transcript-editor-view'))) return;
-
-            const parts: string[] = [];
-            if (e.ctrlKey) parts.push('Control');
-            if (e.metaKey) parts.push('Meta');
-            if (e.altKey) parts.push('Alt');
-            if (e.shiftKey) parts.push('Shift');
-            
-            const key = e.key === ' ' ? ' ' : e.key;
-            if (!['Control', 'Meta', 'Alt', 'Shift'].includes(key)) parts.push(key);
-            
-            const keySignatureLower = parts.join('+').toLowerCase();
-
-            const handlePlayPauseShortcut = () => {
-                const audio = audioRef.current;
-                if (!audio) return;
-
-                if (audio.paused) {
-                    const playPromise = audio.play();
-                    if (playPromise !== undefined) {
-                        playPromise.catch(error => {
-                            if (error.name !== 'AbortError') {
-                                console.error('Audio playback failed from shortcut:', error);
-                            }
-                        });
-                    }
-                } else {
-                    audio.pause();
-                }
-            };
-            
-            const shortcutMap: { [key: string]: () => void } = {
-                [shortcuts.playPause.toLowerCase()]: handlePlayPauseShortcut,
-                [shortcuts.rewind.toLowerCase()]: () => { if (audioRef.current) audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - 3); },
-                [shortcuts.forward.toLowerCase()]: () => { if (audioRef.current) audioRef.current.currentTime = Math.min(audioRef.current.duration || Infinity, audioRef.current.currentTime + 3); },
-                [shortcuts.toggleLineNumbers.toLowerCase()]: () => setIsLineNumbersVisible(v => !v),
-                [shortcuts.undo.toLowerCase()]: undo,
-                [shortcuts.redo.toLowerCase()]: redo,
-            };
-
-            if (shortcutMap[keySignatureLower]) {
-                e.preventDefault();
-                shortcutMap[keySignatureLower]();
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [shortcuts, audioRef, undo, redo, setIsLineNumbersVisible]);
+    // Shortcuts are now handled by individual editors
+    // useEffect(() => {
+    //     const handleKeyDown = (e: KeyboardEvent) => {
+    //         // ... keyboard shortcut handling
+    //     };
+    //     window.addEventListener('keydown', handleKeyDown);
+    //     return () => window.removeEventListener('keydown', handleKeyDown);
+    // }, [shortcuts]);
 
     const value: UIContextType = {
         leftSidebarOpen, setLeftSidebarOpen, chatOpen, setChatOpen, isSettingsOpen, setIsSettingsOpen,

@@ -73,7 +73,7 @@ const VirtualTranscriptView = forwardRef<VirtualTranscriptViewHandle, VirtualTra
             if (word.isParagraphStart && index > 0) {
                 // End current paragraph and start new one
                 if (currentParagraph.length > 0) {
-                    result += currentParagraph.join(' ') + '\n\n';
+                    result += currentParagraph.join(' ') + '\n';
                     currentParagraph = [];
                 }
                 
@@ -263,7 +263,7 @@ const VirtualTranscriptView = forwardRef<VirtualTranscriptViewHandle, VirtualTra
             if (textareaRef.current) {
                 const textarea = textareaRef.current;
                 const { selectionStart, selectionEnd } = textarea;
-                const insertText = `\n\n${formatTimestamp(time)} ${speakerLabel}: `;
+                const insertText = `\n${formatTimestamp(time)} ${speakerLabel}: `;
                 const newText = text.slice(0, selectionStart) + insertText + text.slice(selectionEnd);
                 setText(newText);
                 

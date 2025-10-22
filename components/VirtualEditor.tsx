@@ -20,7 +20,7 @@ export const VirtualEditor: React.FC = () => {
     } = useVirtualData();
 
     const {
-        isTimelineVisible, isLineNumbersVisible, timelineZoom, textZoom, volume, lastPlaybackTime,
+        isTimelineVisible, isLineNumbersVisible, timelineZoom, textZoom, volume, lastPlaybackTime, shortcuts,
         setIsTimelineVisible, setIsLineNumbersVisible, setTimelineZoom, setTextZoom, setVolume, setLastPlaybackTime
     } = useUI();
 
@@ -183,17 +183,17 @@ export const VirtualEditor: React.FC = () => {
         if (audioRef.current && time !== null) {
             const audio = audioRef.current;
             audio.currentTime = time;
-            // REMOVED: Auto-play behavior when paused - allow seeking during playback without interruption
-            // if (audio.paused) {
-            //      const playPromise = audio.play();
-            //      if (playPromise !== undefined) {
-            //         playPromise.catch(error => {
-            //             if (error.name !== 'AbortError') {
-            //                 console.error('Audio playback failed on seek:', error);
-            //             }
-            //         });
-            //     }
-            // }
+            // Auto-play on word click for better UX
+            if (audio.paused) {
+                const playPromise = audio.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        if (error.name !== 'AbortError') {
+                            console.error('Audio playback failed on seek:', error);
+                        }
+                    });
+                }
+            }
         }
     };
     
@@ -203,7 +203,19 @@ export const VirtualEditor: React.FC = () => {
 
     const handleTimelineSeek = (time: number) => {
         if (!audioRef.current) return;
-        audioRef.current.currentTime = time;
+        const audio = audioRef.current;
+        audio.currentTime = time;
+        // Auto-play on timeline click for better UX
+        if (audio.paused) {
+            const playPromise = audio.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(error => {
+                    if (error.name !== 'AbortError') {
+                        console.error('Audio playback failed on timeline seek:', error);
+                    }
+                });
+            }
+        }
         setTimeToScrollTo(time); // Trigger the scroll effect
     };
     
@@ -294,11 +306,48 @@ export const VirtualEditor: React.FC = () => {
     }, [searchQuery, replaceQuery, currentTranscript, setTranscript]);
     
     const handleEditStart = useCallback(() => {
-        // REMOVED: Auto-pause behavior to allow continuous audio playback during editing
-        // if (audioRef.current && !audioRef.current.paused) {
-        //     audioRef.current.pause();
-        // }
-    }, []);
+        // Auto-pause on edit start for better focus
+        if (audioRef.current && !audioRef.current.paused) {
+            audioRef.current.pause();
+        }
+    }, [audioRef]);
+
+    // Keyboard shortcuts
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            const target = e.target as HTMLElement;
+            if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || (target.isContentEditable && !target.closest('.transcript-editor-view'))) return;
+
+            const parts: string[] = [];
+            if (e.ctrlKey) parts.push('Control');
+            if (e.metaKey) parts.push('Meta');
+            if (e.altKey) parts.push('Alt');
+            if (e.shiftKey) parts.push('Shift');
+            
+            const key = e.key === ' ' ? ' ' : e.key;
+            if (!['Control', 'Meta', 'Alt', 'Shift'].includes(key)) parts.push(key);
+            
+            const keySignatureLower = parts.join('+').toLowerCase();
+
+            const shortcutMap: { [key: string]: () => void } = {
+                [shortcuts.playPause.toLowerCase()]: handlePlayPause,
+                [shortcuts.rewind.toLowerCase()]: () => { if (audioRef.current) audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - 3); },
+                [shortcuts.forward.toLowerCase()]: () => { if (audioRef.current) audioRef.current.currentTime = Math.min(audioRef.current.duration || Infinity, audioRef.current.currentTime + 3); },
+                [shortcuts.toggleLineNumbers.toLowerCase()]: () => setIsLineNumbersVisible(v => !v),
+                [shortcuts.undo.toLowerCase()]: undo,
+                [shortcuts.redo.toLowerCase()]: redo,
+                [shortcuts.interpolateEdits.toLowerCase()]: handleInterpolateEdits,
+            };
+
+            if (shortcutMap[keySignatureLower]) {
+                e.preventDefault();
+                shortcutMap[keySignatureLower]();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [shortcuts, handlePlayPause, audioRef, setIsLineNumbersVisible, undo, redo, handleInterpolateEdits]);
 
     const VolumeIcon = () => {
         if (volume === 0) return <VolumeXIcon className="w-5 h-5 text-gray-400" />;
