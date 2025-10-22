@@ -5,7 +5,9 @@ import { FileUpload } from './FileUpload';
 import { FindReplaceBar } from './FindReplaceBar';
 import { useData } from '../contexts/DataContext';
 import { useUI } from '../contexts/UIContext';
-import { PlayIcon, PauseIcon, UploadCloudIcon, EyeIcon, EyeOffIcon, ClockIcon, ResetIcon, ZoomInIcon, ZoomOutIcon, Volume2Icon, Volume1Icon, VolumeXIcon, UndoIcon, RedoIcon, WandIcon, ListIcon, DownloadIcon, SearchIcon } from './icons/Icons';
+import { useLineHighlight } from '../contexts/LineHighlightContext';
+import { LineHighlightConfig } from './LineHighlightConfig';
+import { PlayIcon, PauseIcon, UploadCloudIcon, EyeIcon, EyeOffIcon, ClockIcon, ResetIcon, ZoomInIcon, ZoomOutIcon, Volume2Icon, Volume1Icon, VolumeXIcon, UndoIcon, RedoIcon, WandIcon, ListIcon, DownloadIcon, SearchIcon, HighlightIcon } from './icons/Icons';
 import { formatTranscriptForExport } from '../services/processingService';
 import type { DiarizationSegment } from '../types';
 
@@ -38,6 +40,10 @@ export const Editor: React.FC = () => {
     const [currentMatchIndex, setCurrentMatchIndex] = useState(-1);
     
     const [selectedSegment, setSelectedSegment] = useState<DiarizationSegment | null>(null);
+
+    // Line highlighting state
+    const [isHighlightConfigOpen, setIsHighlightConfigOpen] = useState(false);
+    const highlightButtonRef = useRef<HTMLButtonElement>(null);
 
     const transcriptViewRef = useRef<TranscriptViewHandle>(null);
 
@@ -180,20 +186,53 @@ export const Editor: React.FC = () => {
     };
 
     const handleSeekToTime = (time: number | null) => {
-        if (audioRef.current && time !== null) {
-            const audio = audioRef.current;
+        if (!audioRef.current || time === null || isNaN(time) || time < 0) {
+            console.warn('Invalid audio seek request:', { audio: !!audioRef.current, time });
+            return;
+        }
+        
+        const audio = audioRef.current;
+        
+        // Ensure audio is loaded and ready
+        if (audio.readyState < 2) {
+            console.warn('Audio not ready for seeking, readyState:', audio.readyState);
+            // Try again after a short delay
+            setTimeout(() => handleSeekToTime(time), 100);
+            return;
+        }
+        
+        // Validate time is within bounds
+        if (audio.duration && time > audio.duration) {
+            console.warn('Seek time exceeds duration:', time, 'vs', audio.duration);
+            time = audio.duration - 0.1; // Seek near end instead
+        }
+        
+        try {
             audio.currentTime = time;
-            // Auto-play on word click for better UX
+            
+            // Auto-play on word click for better UX with improved reliability
             if (audio.paused) {
                 const playPromise = audio.play();
                 if (playPromise !== undefined) {
-                    playPromise.catch(error => {
-                        if (error.name !== 'AbortError') {
-                            console.error('Audio playback failed on seek:', error);
-                        }
-                    });
+                    playPromise
+                        .then(() => {
+                            // Success - audio is playing
+                        })
+                        .catch(error => {
+                            if (error.name !== 'AbortError') {
+                                console.error('Audio playback failed on seek:', error);
+                                // Try again after a brief pause
+                                setTimeout(() => {
+                                    if (audio.paused && audioRef.current === audio) {
+                                        audio.play().catch(() => {}); // Silent retry
+                                    }
+                                }, 50);
+                            }
+                        });
                 }
             }
+        } catch (error) {
+            console.error('Error during audio seek:', error);
         }
     };
     
@@ -454,6 +493,21 @@ export const Editor: React.FC = () => {
                         <button onClick={() => setIsLineNumbersVisible(!isLineNumbersVisible)} className="p-1 rounded-full hover:bg-gray-700 transition-colors" title={isLineNumbersVisible ? "Hide Line Numbers" : "Show Line Numbers"}>
                            <ListIcon className={`w-5 h-5 ${isLineNumbersVisible ? 'text-brand-blue' : 'text-gray-400'}`}/>
                        </button>
+                       <div className="relative">
+                           <button 
+                               ref={highlightButtonRef}
+                               onClick={() => setIsHighlightConfigOpen(!isHighlightConfigOpen)} 
+                               className="p-1 rounded-full hover:bg-gray-700 transition-colors" 
+                               title="Configure Line Highlighting"
+                           >
+                               <HighlightIcon className={`w-5 h-5 ${isHighlightConfigOpen ? 'text-brand-blue' : 'text-gray-400'}`}/>
+                           </button>
+                           <LineHighlightConfig 
+                               isOpen={isHighlightConfigOpen}
+                               onClose={() => setIsHighlightConfigOpen(false)}
+                               anchorRef={highlightButtonRef}
+                           />
+                       </div>
 
                     </div>
 

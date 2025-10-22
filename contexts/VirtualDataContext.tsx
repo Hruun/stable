@@ -199,6 +199,7 @@ export const VirtualDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
             setTranscriptVersions(newVersions);
             setCurrentVersionIndex(newVersions.length - 1);
             setMfaApplied(true);
+            setMfaData(null); // Clear MFA data after processing
             
             console.log('Virtual MFA timestamps applied');
         } catch (error) {
@@ -227,6 +228,7 @@ export const VirtualDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
             setTranscriptVersions(newVersions);
             setCurrentVersionIndex(newVersions.length - 1);
             setWhisperApplied(true);
+            setWhisperData(null); // Clear Whisper data after processing
             
             console.log('Virtual Whisper timestamps applied');
         } catch (error) {

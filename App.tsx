@@ -13,6 +13,7 @@ import { DataProvider, useData } from './contexts/DataContext';
 import { VirtualDataProvider, useVirtualData } from './contexts/VirtualDataContext';
 import { UIProvider, useUI } from './contexts/UIContext';
 import { ChatProvider, useChat } from './contexts/ChatContext';
+import { LineHighlightProvider } from './contexts/LineHighlightContext';
 
 const ClassicEditorContent: React.FC = () => {
     const { transcriptVersions, currentVersionIndex, setCurrentVersionIndex } = useData();
@@ -120,7 +121,9 @@ const App: React.FC = () => {
         <DataProvider>
             <UIProvider>
                 <ChatProvider>
-                    <AppContent />
+                    <LineHighlightProvider>
+                        <AppContent />
+                    </LineHighlightProvider>
                 </ChatProvider>
             </UIProvider>
         </DataProvider>
