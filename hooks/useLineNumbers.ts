@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import React, { useMemo, useRef } from 'react';
 import type { MatchedWord } from '../types';
 
 interface LineInfo {
